@@ -1,0 +1,6 @@
+FROM llama3:8b
+PARAMETER temperature 0.2
+PARAMETER num_ctx 8192
+PARAMETER num_batch 1024
+PARAMETER num_keep 2400
+PARAMETER num_predict 512
