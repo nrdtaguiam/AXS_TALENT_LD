@@ -5,21 +5,17 @@ An AI-powered Talent Intelligence platform that maps academic profiles to corpor
 
 ## 🚀 Key Features
 
-* **Multi-Persona Interface Portal**: Sleek, glassmorphic tab-based navigation pills supporting:
-  * **Talent Portal**: Features a custom Profile Header for *Gerard Cruz*, a **Chart.js Radar/Spider Chart** mapping current proficiency vs. Data Engineer target requirements, a *Recent Activity* feed logging routing updates, and a 4-week horizontal Kanban path showing bypassed modules.
-  * **L&D Portal**: Features an **AXIS Enterprise Financial & Velocity Ledger** row with three glassmorphic KPI cards showing real-time ROI metrics, a clean 2-column desktop grid layout, a **Predictive Market Demand Simulator** control widget, and an **Agent Lifecycle Modal Overlay** displaying typewriter-style real-time agent reasoning telemetry logs. Includes onboarding triggers, upskilling reassessment settings, and pathway overrides.
-  * **iPeople Portal**: Displays strategic university curriculum metrics, an **Interactive Program Coverage Matrix** grid mapping tracks to BUs, and an *Urgent Gaps Sidebar* with **Propose Update** triggers.
+* **Focused Governance Interface**: Realigned header tabs capsule to display the two primary portals:
+  * **L&D Portal (Default)**: Features an orange-amber gradient hero banner, 4 glassmorphic KPI status cards, a clean 2-column desktop grid for deployment-ready candidates, a **Predictive Talent Supply Heatmap**, a **Live Agentic Orchestration Visualizer**, and telemetry console logs.
+  * **Admin Portal**: Displays the **AXIS Enterprise Financial & Velocity Ledger** (ROI tracking cards), a **Predictive Market Demand Simulator**, core database rosters, the **Job Ingestion Pipeline Configurator**, and an **AI SQL Assistant & Database Sandbox Console**.
+* **Live Agentic Orchestration Visualizer (`frontend/dashboard.html`)**: A node-based flowchart mapping the agent chain (`Ontology` → `Diagnostic` → `Routing` → `Matchmaker`). Pulses and lights up dynamically as telemetry stream logs execute in real-time.
+* **Predictive Talent Supply Heatmap**: Forecasts compliance risk and talent surpluses/deficits across business units (Globe, BPI, Ayala Land) for 4 months ahead, complete with interactive tooltips.
+* **AI Career Path Simulator**: Added directly inside the candidate details modal. Select a target career goal (e.g. *Lead Risk Architect*) and watch the system vector a progressive career roadmap mapping baseline readiness to target sprints.
+* **AI SQL Assistant & Database Sandbox (`app.py` & `dashboard.html`)**: Features direct SQLite access inside the Admin console.
+  * **Text-to-SQL Translator**: Write queries in plain English (e.g. *"List all active requisitions at BPI"*), click Translate, and observe the valid SQLite command generated via Gemini.
+  * **Interactive Console**: Run SELECT or mutation queries against `axis_talent.db` and view the database rows formatted in an interactive spreadsheet table instantly.
 * **Persistent Asynchronous Engine (`database/models.py`)**: Migrated from volatile in-memory dictionary stores to a production-grade asynchronous SQLAlchemy engine powered by SQLite (`sqlite+aiosqlite`).
-* **Optimized IT Domain Vector Engine (`agents/vector_service.py`)**: Dense vector search engine mapping candidate profiles to vacancy profiles. Refactored text aggregation to cleanly classify skills into Core Programming Syntax (e.g. Python, Java, C++), Infrastructure Tools (e.g. AWS, Docker, Kubernetes, CI/CD), and Data Management Components (e.g. SQL, PySpark, MongoDB), with structural domain anchor injection and safe fallbacks to "Entry-Level General IT Support".
-* **Refactored Semantic Matchmaker (`agents/predictive_matchmaker.py`)**: Derives match confidence and analytical justifications dynamically from vector score weights. Programmatically builds query vectors based on business unit requisitions and candidate passports, binding the raw cosine similarity score cleanly to the payload context.
-* **Local 4-Agent CrewAI Orchestrator (`agents/orchestrator.py`)**: Orchestrates the talent intelligence pipeline locally using CrewAI. Connects to a local Ollama server running `llama3:8b` via the `http://localhost:11434/v1` endpoint. Coordinates a sequential workflow of 4 specialized agents:
-  1. *OntologyAgent* (Taxonomy Framework Builder)
-  2. *DiagnosticAgent* (Talent Competency Profiler)
-  3. *RoutingAgent* (Dynamic Learning Path Router)
-  4. *MatchmakingAgent* (Predictive Corporate Matchmaker)
-  Enforces strict Pydantic structured output validation on the final task to ensure FastAPI and glassmorphic UI compatibility, with robust local rule-based fallback paths.
-* **Agent Lifecycle Modal Overlay**: A central pop-up modal overlay that instantly triggers when actions are executed (Matchmake, Deploy, Reassess, Pathway Override, Demand Simulation, etc.) to stream real-time typewriter-style agent reasoning traces.
-
+* **Optimized IT Domain Vector Engine (`agents/vector_service.py`)**: Dense vector search engine mapping candidate profiles to vacancy profiles. Refactored text aggregation to cleanly classify skills into Core Programming Syntax (e.g. Python, Java, C++), Infrastructure Tools (e.g. AWS, Docker, Kubernetes, CI/CD), and Data Management Components (e.g. SQL, PySpark, MongoDB), with structural domain anchor injection.
 
 ---
 
@@ -52,32 +48,29 @@ AXIS_OJT/
 
 All backend endpoints are prefixed with `/api/v1` and handle data asynchronously through `AsyncSessionLocal` session context managers.
 
-### 1. `GET /api/v1/talent/profile`
-Returns the target student Gerard Cruz's profile details, passport, 4-week horizontal Kanban pathway, radar chart indices, and recent activities from the database.
+### 1. `GET /api/v1/ld/metrics`
+Retrieves database statistics for the active candidate pipeline (Deployment Ready, In Training, Redeployed stages).
 
-### 2. `GET /api/v1/ld/metrics`
-Retrieves aggregated database statistics for the active candidate pipeline (Deployment Ready, In Training, Redeployed stages).
+### 2. `GET /api/v1/ld/analytics`
+Retrieves corporate ROI analytics, including recruitment capital saved (PHP 200,000 per redeployed candidate), micro-learning cost mitigation, total platform savings, and dynamically calculated ROI percentage.
 
-### 3. `GET /api/v1/ld/analytics`
-Retrieves corporate ROI analytics, including recruitment capital saved (PHP 200,000 per redeployed candidate), micro-learning cost mitigation (PHP 116,000 per bypassed pathway week), total platform savings, and dynamically calculated ROI percentage against a 150,000 PHP budget.
-
-### 4. `GET /api/v1/ld/talents`
+### 3. `GET /api/v1/ld/talents`
 Fetches candidate profiles from the SQLite database. Defaults to candidates matching the `DEPLOYMENT_READY` status.
 
-### 5. `GET /api/v1/ld/bus`
-Retrieves active business unit openings (Globe, BPI, Ayala Land), vacancies, and placement volumes from the persistent store.
+### 4. `GET /api/v1/ld/bus`
+Retrieves active business unit openings (Globe, BPI, Ayala Land), vacancies, and placement volumes.
 
-### 6. `POST /api/v1/ld/matchmake`
+### 5. `POST /api/v1/ld/matchmake`
 Evaluates matchmaking alignment between ready candidates and corporate open vacancies using the Live Gemini LLM structured output.
 
-### 7. `POST /api/v1/ld/deploy/{talent_id}`
+### 6. `POST /api/v1/ld/deploy/{talent_id}`
 Transitions a candidate's state from `DEPLOYMENT_READY` to `REDEPLOYED` and dynamically updates the respective BU open vacancy slot counts in the database via atomic transactions.
 
-### 8. `POST /api/v1/ld/talents/{talent_id}/reassess`
+### 7. `POST /api/v1/ld/talents/{talent_id}/reassess`
 Upskills a candidate profile by increasing ratings, satisfying the first gap block, running the **Diagnostic Agent** recalculations, and saving the updated states permanently to SQLite.
 
-### 9. `POST /api/v1/ld/talents/{talent_id}/override_pathway`
-Accepts a module/week ID and action (`BYPASS` or `ADD`) to apply an L&D administrator manual routing override on their 4-week horizontal Kanban layout.
+### 8. `POST /api/v1/ld/talents/{talent_id}/override_pathway`
+Applies manual curriculum module routing overrides.
 * **Request Body Schema**:
   ```json
   {
@@ -86,43 +79,28 @@ Accepts a module/week ID and action (`BYPASS` or `ADD`) to apply an L&D administ
   }
   ```
 
-### 10. `POST /api/v1/ld/bus/add_requisition`
+### 9. `POST /api/v1/ld/bus/add_requisition`
 Publishes a new corporate slot requisition, storing or updating the vacancies persistent record.
+
+### 10. `POST /api/v1/admin/sandbox/nlp`
+Translates plain English queries into valid SQLite queries using the active Gemini API gateway with rule-based fallback.
 * **Request Body Schema**:
   ```json
   {
-    "bu_name": "Globe",
-    "role": "Cybersecurity Analyst",
-    "required_skills": ["Networks", "Linux", "Security"],
-    "vacancies": 2
+    "query": "List all active requisitions at BPI"
   }
   ```
 
-### 11. `POST /api/v1/ld/simulate_demand`
-Accepts a demand scaling factor (e.g., `"Globe +30%"`) and returns predictive impact data, highlighting candidates whose pathways must be compressed/accelerated.
+### 11. `POST /api/v1/admin/sandbox/query`
+Executes SELECT or mutation SQLite statements, returning database rows or mutation rowcounts.
 * **Request Body Schema**:
   ```json
   {
-    "scaling_factor": "Globe +30%"
+    "sql": "SELECT * FROM talent_roster WHERE status = 'DEPLOYMENT_READY';"
   }
   ```
 
-### 12. `POST /api/v1/ld/remediate_drift`
-Triggers a simulated fresh agent orchestration sweep (Ontology, Diagnostic, Routing, Matchmaker) to remediate corporate compliance drift and sync academic vectors with the updated requirements.
-* **Request Body Schema**:
-  ```json
-  {
-    "bu": "Ayala Land"
-  }
-  ```
-
-### 13. `GET /api/v1/ipeople/data`
-Retrieves the tracked university curriculum state: Strategic metrics, program coverage matrix, and urgent gaps list.
-
-### 14. `POST /api/v1/ipeople/propose`
-Triggered when an Academic Dean clicks 'Propose Update'. Recalculates metrics dynamically, raises average coverage values, updates the coverage matrix coefficients, and returns execution telemetry traces from the Ontology and Routing agents.
-
-### 15. `POST /api/v1/ld/reset`
+### 12. `POST /api/v1/ld/reset`
 Resets the database tables, truncates records, and re-seeds initial candidate profiles and BU requirements back to default values.
 
 ---
@@ -139,13 +117,12 @@ Navigate to your workspace directory and install the required libraries:
 pip install -r src/axis_talent_intelligence/requirements.txt
 ```
 
-### 2. Configure Local Ollama Server
-Ensure you have Ollama running locally at `http://localhost:11434` and pull the required model:
+### 2. Configure Gemini API Key (Optional)
+To enable dynamic LLM matching and natural language SQL translations, set the Gemini environment variable:
 ```powershell
-ollama pull llama3:8b
+$env:GEMINI_API_KEY="your-api-key-here"
 ```
-All agents are configured to connect to this local inference endpoint (`http://localhost:11434/v1`). If the Ollama server is offline or the model is missing, the orchestration pipeline automatically catches the exception and falls back to a deterministic, local rule-based engine. This guarantees that the platform functions seamlessly and remains offline-resilient.
-
+*Note: If no API key is set, the application automatically runs on a deterministic, offline-resilient local rule-based system.*
 
 ### 3. Start the Backend Web Server
 Execute the orchestrator:
@@ -162,11 +139,8 @@ Open your web browser and navigate to:
 
 ## 🧪 Interactive Walkthrough
 
-Once you have opened the L&D Dashboard in your browser:
-1. **Explore the Talent Portal**: Click **`[Talent Portal]`** in the navbar header. Verify that you are signed in as *Gerard Cruz*, inspect the radar chart mapping, and examine the horizontal Kanban Learning Pathway detailing the bypassed Python modules.
-2. **Execute L&D Matching and Placement**: Switch to **`[L&D Portal]`**. Click **`[Run Matchmaking]`** to observe the AI matching confidence profile traces instantly output to the **🤖 AXIS Live Agent Telemetry Console** drawer which slides in from the right. Then, click **`[Deploy]`** on a candidate (e.g., Jericho Tan) and notice how the active BU slots vacancies decrease, total placements increase, and the UI reloads immediately to reflect updated states.
-3. **Advanced HR Actions (Upskilling & Overrides)**:
-   * Hover over the **`[Manage]`** button next to any candidate card.
-   * Click **`[Reassess]`**: This triggers an API call that simulates upskilling by improving their credentials and satisfying a gap. If their score exceeds 80%, their status transitions to `DEPLOYMENT_READY` and they appear on the main placement list!
-   * Click **`[Override Path]`**: Input `Week 1` and select `BYPASS`. View their detail card (`[View Profile]`) to see the week marked in green as bypassed by manual administrator action. The telemetry console drawer slides in and streams: `"HR ADMINISTRATOR OVERRIDE: Bypassing Week 1 for [Talent Name]."`
-4. **Trigger iPeople Academic Alignments**: Switch to **`[iPeople Portal]`**. Notice that the track matrix has gaps (such as `BS CS` vs. `BPI` at 70%). Scroll to the Urgent Gaps Panel and click **`[Propose Update]`** next to `PHIL104 - Ethics`. Watch the Live Agent Telemetry Console drawer slide in and stream how the **Ontology Agent** and **Routing Agent** recalculate alignment vectors to update the matrix.
+1. **Explore the L&D Hub**: The dashboard launches directly on the L&D Hub view. Hover over the **Predictive Talent Supply Heatmap** cells to see deficit alerts. Click **"Run Matchmaking"** to see the **Live Agentic Visualizer** flowchart animate.
+2. **Review Explainable AI profiles**: Click on candidate **Jericho Tan**. Observe the dynamic **Explainable AI Matching Analysis** card displaying his strengths and custom bridging strategies. In the **AI Career Path Simulator**, select *Principal Systems Architect* to generate a simulated roadmap.
+3. **Execute SQL queries**: Go to the **Admin Portal** tab. In the database sandbox at the bottom, type:
+   `List all candidates`
+   Click **Translate**, then **Execute SQL Query**. Inspect the candidate database rows formatted directly inside the spreadsheet.

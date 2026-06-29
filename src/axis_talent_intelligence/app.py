@@ -1167,12 +1167,69 @@ async def simulate_demand(req: SimulateDemandRequest):
                 "reason": f"SURGE DEMAND: Target BU {bu} vacancy increase requires deployment timeline compression."
             })
             
+    # Run the real-time telemetry stream via streaming orchestrator for the first eligible candidate under this BU
+    additional_traces = []
+    if candidates_to_accelerate:
+        # Retrieve candidate model from talents
+        candidate_obj = None
+        for t in talents:
+            if t.id == candidates_to_accelerate[0]["talent_id"]:
+                candidate_obj = t
+                break
+        
+        if candidate_obj:
+            # Construct candidate profile dict
+            talent_data = {
+                "id": candidate_obj.id,
+                "name": candidate_obj.name,
+                "role": candidate_obj.role,
+                "target_bu": candidate_obj.target_bu,
+                "readiness_score": candidate_obj.readiness_score,
+                "status": candidate_obj.status,
+                "academic_records": candidate_obj.academic_records,
+                "certifications": candidate_obj.certifications,
+                "gaps": candidate_obj.gaps or []
+            }
+            
+            # Find the latest role registered under this BU to evaluate against
+            # (or use the candidate's target role as fallback)
+            async with AsyncSessionLocal() as session:
+                result_req = await session.execute(
+                    select(BUDemand)
+                    .filter(BUDemand.bu_name.ilike(bu))
+                )
+                reqs = result_req.scalars().all()
+            
+            surge_role = candidate_obj.role
+            baseline_roles = {"data engineer", "risk analyst", "project manager"}
+            for r in reqs:
+                if r.role.lower() not in baseline_roles:
+                    surge_role = r.role
+                    break
+            
+            surge_context = {
+                "role": surge_role,
+                "surge_percentage": percentage
+            }
+            
+            try:
+                import json
+                async for token_str in live_orchestrator.execute_talent_pipeline_stream(talent_data, surge_context=surge_context):
+                    try:
+                        token_data = json.loads(token_str)
+                        msg = token_data.get("message", "")
+                        if msg:
+                            additional_traces.append(msg)
+                    except Exception:
+                        pass
+            except Exception as stream_err:
+                additional_traces.append(f"SYSTEM | ERROR: Streaming failed: {stream_err}")
+
+    # Build agent traces combining surge updates with dynamic telemetry traces
     agent_traces = [
         f"PREDICTIVE_MATCHMAKER | SURGE: Demand scaling vector surge of +{percentage}% simulated for BU: {bu}.",
-        f"PREDICTIVE_MATCHMAKER | TARGETS: Vacancies scaled from {original_vacancies} to {new_vacancies} active slots.",
-        f"ROUTING_AGENT | ACCELERATION: Generated compressed pathway requirements for {len(candidates_to_accelerate)} candidates.",
-        f"ONTOLOGY_AGENT | TAXONOMY: Verifying fast-track prerequisites for AWS and Pipeline frameworks."
-    ]
+        f"PREDICTIVE_MATCHMAKER | TARGETS: Vacancies scaled from {original_vacancies} to {new_vacancies} active slots."
+    ] + additional_traces
     
     return {
         "status": "success",
@@ -1444,6 +1501,124 @@ async def reset_database():
         db_ipeople["proposals"] = []
         
         return {"status": "success", "message": "Database reset completed."}
+
+@app.post("/api/v1/ld/deploy_lms")
+async def deploy_to_lms(req: Dict[str, Any]):
+    """
+    Mock endpoint to receive the generated upskilling pathway payload and deploy it to corporate LMS.
+    """
+    import logging
+    logging.info(f"LMS | RECEIVED: Deploying pathway to corporate LMS: {req.get('routing', {}).get('routing_rationale')}")
+    return {"status": "success", "message": "Pathway successfully dispatched to corporate LMS."}
+
+class SQLSandboxRequest(BaseModel):
+    sql: str
+
+class NLPSandboxRequest(BaseModel):
+    query: str
+
+async def translate_text_to_sql(nlp_query: str) -> str:
+    # Rule-based fallback dictionary
+    nlp_query_lower = nlp_query.lower().strip()
+    
+    if "list all active requisitions" in nlp_query_lower or "all requisitions" in nlp_query_lower or "list all job" in nlp_query_lower:
+        return "SELECT * FROM bu_demand;"
+    elif "requisitions at bpi" in nlp_query_lower or "bpi jobs" in nlp_query_lower or "bpi requisitions" in nlp_query_lower:
+        return "SELECT * FROM bu_demand WHERE bu_name = 'BPI';"
+    elif "requisitions at globe" in nlp_query_lower or "globe jobs" in nlp_query_lower or "globe requisitions" in nlp_query_lower:
+        return "SELECT * FROM bu_demand WHERE bu_name = 'Globe';"
+    elif "requisitions at ayala land" in nlp_query_lower or "ayala land jobs" in nlp_query_lower or "ayala land requisitions" in nlp_query_lower:
+        return "SELECT * FROM bu_demand WHERE bu_name = 'Ayala Land';"
+    elif "list all candidates" in nlp_query_lower or "all talents" in nlp_query_lower or "all candidates" in nlp_query_lower:
+        return "SELECT * FROM talent_roster;"
+    elif "ready candidates" in nlp_query_lower or "deployment ready" in nlp_query_lower or "ready talents" in nlp_query_lower:
+        return "SELECT * FROM talent_roster WHERE status = 'DEPLOYMENT_READY';"
+    elif "candidates in training" in nlp_query_lower or "training talents" in nlp_query_lower:
+        return "SELECT * FROM talent_roster WHERE status = 'TRAINING';"
+    elif "redeployed candidates" in nlp_query_lower or "redeployed talents" in nlp_query_lower:
+        return "SELECT * FROM talent_roster WHERE status = 'REDEPLOYED';"
+    elif "bpi candidates" in nlp_query_lower or "candidates for bpi" in nlp_query_lower:
+        return "SELECT * FROM talent_roster WHERE target_bu = 'BPI';"
+    elif "globe candidates" in nlp_query_lower or "candidates for globe" in nlp_query_lower:
+        return "SELECT * FROM talent_roster WHERE target_bu = 'Globe';"
+    elif "ayala land candidates" in nlp_query_lower or "candidates for ayala land" in nlp_query_lower:
+        return "SELECT * FROM talent_roster WHERE target_bu = 'Ayala Land';"
+    
+    # Try LLM translation if API key is present
+    api_key = os.environ.get("GEMINI_API_KEY")
+    try:
+        from google import genai
+        HAS_GENAI = True
+    except ImportError:
+        HAS_GENAI = False
+        
+    if HAS_GENAI and api_key:
+        try:
+            client = genai.Client(api_key=api_key)
+            prompt = f"""
+            You are a Text-to-SQL translator. Translate the following user question into a clean SQLite query.
+            Only return the SQL query string itself, without markdown blocks, without backticks, and without any explanation.
+            
+            Database schema:
+            1. talent_roster:
+               - id (TEXT, primary key)
+               - name (TEXT)
+               - role (TEXT)
+               - target_bu (TEXT)
+               - readiness_score (REAL)
+               - status (TEXT, e.g. 'ASSESSING', 'TRAINING', 'DEPLOYMENT_READY', 'REDEPLOYED')
+               - academic_records (TEXT, JSON string)
+               - certifications (TEXT, JSON string)
+               - gaps (TEXT, JSON string)
+            
+            2. bu_demand:
+               - bu_name (TEXT)
+               - role (TEXT)
+               - vacancies (INTEGER)
+               - filled (INTEGER)
+               - skills (TEXT, JSON string)
+            
+            User question: "{nlp_query}"
+            SQL query:
+            """
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt
+            )
+            sql = response.text.strip()
+            if sql.startswith("```"):
+                sql = sql.replace("```sql", "").replace("```", "").strip()
+            return sql
+        except Exception:
+            pass
+            
+    # Default fallback: search by name
+    return f"SELECT * FROM talent_roster WHERE name LIKE '%{nlp_query}%';"
+
+@app.post("/api/v1/admin/sandbox/nlp")
+async def translate_nlp(req: NLPSandboxRequest):
+    sql = await translate_text_to_sql(req.query)
+    return {"status": "success", "sql": sql}
+
+@app.post("/api/v1/admin/sandbox/query")
+async def execute_sandbox_query(req: SQLSandboxRequest):
+    async with AsyncSessionLocal() as session:
+        from sqlalchemy import text
+        try:
+            result = await session.execute(text(req.sql))
+            # If it's a SELECT query, we fetch all rows
+            if req.sql.strip().lower().startswith("select"):
+                rows = result.fetchall()
+                keys = list(result.keys())
+                data = []
+                for row in rows:
+                    data.append(dict(zip(keys, row)))
+                return {"status": "success", "type": "select", "columns": keys, "rows": data}
+            else:
+                await session.commit()
+                return {"status": "success", "type": "mutation", "rows_affected": result.rowcount}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
 # Serve HTML Dashboard
 @app.get("/", response_class=HTMLResponse)
